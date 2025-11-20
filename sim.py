@@ -1,3 +1,4 @@
+#lvl0 t/m 5 = done
 #!/usr/bin/env python3
 
 import sys
@@ -7,12 +8,34 @@ from typing import List
 from dataclasses import dataclass
 
 @dataclass
-class InstructiesNaDecode:       #eerlijk gezegd weet ik gewoon nogsteeds niet zoveel over dataclass aangezien deze import nieuw is voor mij, gelukkig heeft stack overflow e.d. mij erg geholpen deze opdracht
+class RInstructies:       #eerlijk gezegd weet ik gewoon nogsteeds niet zoveel over dataclass aangezien deze import nieuw is voor mij, gelukkig heeft stack overflow e.d. mij erg geholpen deze opdracht
     Type: str
     opcode: int
     rd: int
     rs1: int
     rs2: int
+
+@dataclass
+class IInstructies:
+    Type: str
+    opcode: int
+    rd: int
+    rs1: int
+    immediate: int
+
+@dataclass
+class OInstructies: 
+    Type: str
+    opcode: int
+    immediate: int
+    rs1: int
+
+@dataclass
+class BInstructies:
+    Type: str
+    opcode: int
+    rs1: int
+    immediate: int
 
 class CPU:
     # Data memory; starts at 10240 (decimal!), size 4096.
@@ -90,45 +113,167 @@ class CPU:
         self.IR = self.program[self.PC].strip() #haalt de instructies uit self.program en zet deze in de instruction register
 
     def decode(self): 
+        Type = None
         IR = self.IR.strip()
         IRwaarden = [int(waarde.strip()) for waarde in IR.split(",")]
         opcode = IRwaarden[0]
-        if opcode in {10, 11, 12}:
+        if opcode in {10, 11, 12, 20, 21, 22, 23, 24, 25}:
             Type = "R"
-        #elif opcode in {110, 111, 112}:
-            #Type == "I"
+        elif opcode in {110, 111, 112, 124, 125}:
+            Type = "I"
+        elif opcode == 50:
+            Type = "O"
+        elif opcode in {60, 61}:
+            Type = "B"
         if Type == "R":
             rd = IRwaarden[1]
             rs1 = IRwaarden[2]
             rs2 = IRwaarden[3]
-            return InstructiesNaDecode(Type, opcode, rd, rs1, rs2)
-        #elif Type == "I"
+            return RInstructies(Type, opcode, rd, rs1, rs2)
+        elif Type == "I":
+            rd = IRwaarden[1]
+            rs1 = IRwaarden[2]
+            immediate = IRwaarden[3]
+            return IInstructies(Type, opcode, rd, rs1, immediate)
+        elif Type == "O":
+            immediate = IRwaarden[1]
+            rs1 = IRwaarden[2]
+            return OInstructies(Type, opcode, immediate, rs1)
+        elif Type == "B":
+            rs1 = IRwaarden[1]
+            immediate = IRwaarden[2]
+            return BInstructies(Type, opcode, rs1, immediate)
+        else:
+            print("niet het juiste type")
+            return None
 
 #Execute: we voeren nu de operatie daadwerkelijk uit en slaan indien nodig het resultaat op in het doelregister (write-back-stap).
-    def execute(self, instructies): 
-        if InstructiesNaDecode(Type) == "R":
-            if InstructiesNaDecode(opcode) == 10:
-                        #als het programma R0 wil veranderen wordt het genegeerd
-        if registernaam == "R0":
-            return
-        #negeert alles dat niet met een R start
-        if not registernaam.startswith("R"):
-            return
-        registerindexnummer = int(registernaam[1:]) - 1 #geeft me de positie van de registernaam in self.RegisterFile
-        #als het bedoelde register niet in mijn mogelijke register limiet van R15 of lager zit wordt het programma genegeerd
-        if registerindexnummer < 0 or registerindexnummer >= len(self.RegisterFile):
-            return
-        self.RegisterFile[registerindexnummer] = Rwaarde #voegt de juiste waarde toe bij de juiste R in de RegisterFile
-
+    def execute(self, instructies):
+        PC_handelingen = 1
+        if instructies is None:
+            return PC_handelingen
+        if instructies.Type in ("R", "I"):
+            if instructies.rd == 0:
+                return PC_handelingen
+            registerindexnummer = instructies.rd - 1
+            #als het bedoelde register niet in mijn mogelijke register limiet van R15 of lager zit wordt het programma genegeerd
+            if registerindexnummer < 0 or registerindexnummer >= len(self.RegisterFile):
+                return PC_handelingen
+        if instructies.Type == "R":
+            if instructies.rs1 == 0:
+                waarde1 = 0
+            else:
+                rs1_plek = instructies.rs1 - 1
+                waarde1 = self.RegisterFile[rs1_plek]
+                if not (0 <= rs1_plek < len(self.RegisterFile)):
+                    return PC_handelingen
+            if instructies.rs2 == 0:
+                waarde2 = 0
+            else:
+                rs2_plek = instructies.rs2 - 1
+                waarde2 = self.RegisterFile[rs2_plek]
+                if not (0 <= rs2_plek < len(self.RegisterFile)):
+                    return PC_handelingen
+            self.Rwaarde = None
+            if instructies.opcode == 10: #add
+                self.Rwaarde = waarde1 + waarde2
+            if instructies.opcode == 11: #sub
+                self.Rwaarde = waarde1 - waarde2
+            if instructies.opcode == 12: #mul
+                self.Rwaarde = waarde1 * waarde2
+            if instructies.opcode == 20: #SetLT
+                if waarde1 < waarde2:
+                    self.Rwaarde = 1
+                else:
+                    self.Rwaarde = 0
+            if instructies.opcode == 21: #SetLE
+                if waarde1 <= waarde2:
+                    self.Rwaarde = 1
+                else:
+                    self.Rwaarde = 0
+            if instructies.opcode == 22: #SetGT
+                if waarde1 > waarde2:
+                    self.Rwaarde = 1
+                else:
+                    self.Rwaarde = 0
+            if instructies.opcode == 23: #SetGE
+                if waarde1 >= waarde2:
+                    self.Rwaarde = 1
+                else:
+                    self.Rwaarde = 0
+            if instructies.opcode == 24: #SetEQ
+                if waarde1 == waarde2:
+                    self.Rwaarde = 1
+                else:
+                    self.Rwaarde = 0
+            if instructies.opcode == 25: #SetNEQ
+                if waarde1 != waarde2:
+                    self.Rwaarde = 1
+                else:
+                    self.Rwaarde = 0
+            if self.Rwaarde is not None:
+                self.RegisterFile[registerindexnummer] = self.Rwaarde #voegt de juiste waarde toe bij de juiste R in de RegisterFile
+        elif instructies.Type == "I":
+            if instructies.rs1 == 0:
+                waarde1 = 0
+            else:
+                rs1_plek = instructies.rs1 - 1
+                waarde1 = self.RegisterFile[rs1_plek]
+                if not (0 <= rs1_plek < len(self.RegisterFile)):
+                    return PC_handelingen
+            self.Rwaarde = None
+            if instructies.opcode == 110: #add
+                self.Rwaarde = waarde1 + instructies.immediate
+            if instructies.opcode == 111: #sub
+                self.Rwaarde = waarde1 - instructies.immediate
+            if instructies.opcode == 112: #mul
+                self.Rwaarde = waarde1 * instructies.immediate
+            if instructies.opcode == 124: #SetEQI
+                if waarde1 == instructies.immediate:
+                    self.Rwaarde = 1
+                else: 
+                    self.Rwaarde = 0
+            if instructies.opcode == 125: #SetNEQI
+                if waarde1 != instructies.immediate:
+                    self.Rwaarde = 1
+                else: 
+                    self.Rwaarde = 0
+            if self.Rwaarde is not None:
+                self.RegisterFile[registerindexnummer] = self.Rwaarde
+        elif instructies.Type == "O":
+            if instructies.rs1 == 0:
+                waarde1 = 0
+            else:
+                rs1_plek = instructies.rs1 - 1
+                waarde1 = self.RegisterFile[rs1_plek]
+                if not (0 <= rs1_plek < len(self.RegisterFile)):
+                    return PC_handelingen
+            if instructies.opcode == 50: #out
+                print(chr(waarde1 & 0xFF), end='')
+        elif instructies.Type == "B":
+            if instructies.rs1 == 0:
+                waarde1 = 0
+            else:
+                rs1_plek = instructies.rs1 - 1
+                if not (0 <= rs1_plek < len(self.RegisterFile)):
+                    return PC_handelingen
+                waarde1 = self.RegisterFile[rs1_plek]
+            if instructies.opcode == 60: #BZ
+                if waarde1 == 0:
+                    PC_handelingen = instructies.immediate
+            if instructies.opcode == 61: #BNZ
+                if waarde1 != 0:
+                    PC_handelingen = instructies.immediate
+        return PC_handelingen
 
     def run(self, ):
         self.instruction_count = 0     #instruction count met 1 verhogen zodat while loop start
         while self.PC < len(self.program): 
             self.fetch()    #fetch
             instructies = self.decode()    #decode
-            self.execute(instructies)  #execute
+            PC_handelingen = self.execute(instructies)  #execute
             self.instruction_count += 1 #voegt 1 toe aan de instruction count
-            self.PC += 1    #voegt 1 toe aan de program count
+            self.PC += PC_handelingen    #voegt de hoeveelheid PC waardes die uit de execute functie zijn gekomen toe aan de program count
 
 
 def main():
