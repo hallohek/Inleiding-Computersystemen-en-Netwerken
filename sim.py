@@ -4,6 +4,16 @@ import sys
 
 from typing import List
 
+from dataclasses import dataclass
+
+@dataclass
+class InstructiesNaDecode:       #eerlijk gezegd weet ik gewoon nogsteeds niet zoveel over dataclass aangezien deze import nieuw is voor mij, gelukkig heeft stack overflow e.d. mij erg geholpen deze opdracht
+    Type: str
+    opcode: int
+    rd: int
+    rs1: int
+    rs2: int
+
 class CPU:
     # Data memory; starts at 10240 (decimal!), size 4096.
     memory_base = 10240
@@ -82,8 +92,35 @@ class CPU:
     def decode(self): 
         IR = self.IR.strip()
         IRwaarden = [int(waarde.strip()) for waarde in IR.split(",")]
-        
-        
+        opcode = IRwaarden[0]
+        if opcode in {10, 11, 12}:
+            Type = "R"
+        #elif opcode in {110, 111, 112}:
+            #Type == "I"
+        if Type == "R":
+            rd = IRwaarden[1]
+            rs1 = IRwaarden[2]
+            rs2 = IRwaarden[3]
+            return InstructiesNaDecode(Type, opcode, rd, rs1, rs2)
+        #elif Type == "I"
+
+#Execute: we voeren nu de operatie daadwerkelijk uit en slaan indien nodig het resultaat op in het doelregister (write-back-stap).
+    def execute(self, instructies): 
+        if InstructiesNaDecode(Type) == "R":
+            if InstructiesNaDecode(opcode) == 10:
+                        #als het programma R0 wil veranderen wordt het genegeerd
+        if registernaam == "R0":
+            return
+        #negeert alles dat niet met een R start
+        if not registernaam.startswith("R"):
+            return
+        registerindexnummer = int(registernaam[1:]) - 1 #geeft me de positie van de registernaam in self.RegisterFile
+        #als het bedoelde register niet in mijn mogelijke register limiet van R15 of lager zit wordt het programma genegeerd
+        if registerindexnummer < 0 or registerindexnummer >= len(self.RegisterFile):
+            return
+        self.RegisterFile[registerindexnummer] = Rwaarde #voegt de juiste waarde toe bij de juiste R in de RegisterFile
+
+
     def run(self, ):
         self.instruction_count = 0     #instruction count met 1 verhogen zodat while loop start
         while self.PC < len(self.program): 
