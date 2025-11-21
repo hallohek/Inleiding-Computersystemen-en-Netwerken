@@ -1,4 +1,4 @@
-#lvl0 t/m 5 = done
+#lvl0 t/m 6 = done
 #!/usr/bin/env python3
 
 import sys
@@ -35,6 +35,14 @@ class BInstructies:
     Type: str
     opcode: int
     rs1: int
+    immediate: int
+
+@dataclass
+class LSInstructies:
+    Type: str
+    opcode: int
+    R: int
+    RM: int
     immediate: int
 
 class CPU:
@@ -82,7 +90,14 @@ class CPU:
                     continue
                 else:                               #aangezien al het andere dat in een document kan staan instructies zijn zet ik deze in self.programma
                     self.program.append(regel)
-    
+    def laad_data_memory(self, bestandsnaam):   #laad het bestand
+        with open(bestandsnaam, "rb") as bestand:
+            data = bestand.read()
+            aantal_bytes = min(len(data), CPU.memory_size)
+            for plek in range(aantal_bytes):
+                self.data_memory[plek] = data[plek]
+
+
     def _init_register(self, regel):
         opdracht = regel[1:].strip() # maakt van "$ R1=2" -> " R1=2" ->"R1=2"
         registernaam, waarde = opdracht.split("=") #geeft registernaam waarde R1 en waar de waarde 2
@@ -125,6 +140,8 @@ class CPU:
             Type = "O"
         elif opcode in {60, 61}:
             Type = "B"
+        elif opcode in {80, 81}:
+            Type = "LS"
         if Type == "R":
             rd = IRwaarden[1]
             rs1 = IRwaarden[2]
@@ -143,6 +160,11 @@ class CPU:
             rs1 = IRwaarden[1]
             immediate = IRwaarden[2]
             return BInstructies(Type, opcode, rs1, immediate)
+        elif Type == "LS":
+            R = IRwaarden[1]
+            RM = IRwaarden[2]
+            immediate = IRwaarden[3]
+            return LSInstructies(Type, opcode, R, RM, immediate)
         else:
             print("niet het juiste type")
             return None
@@ -264,6 +286,21 @@ class CPU:
             if instructies.opcode == 61: #BNZ
                 if waarde1 != 0:
                     PC_handelingen = instructies.immediate
+        elif instructies.Type == "LS":
+            if instructies.RM == 0:
+                rmwaarde = 0
+            else:
+                rm_index = instructies.RM - 1
+                rmwaarde = self.RegisterFile[rm_index]
+            effective_address = rmwaarde + instructies.immediate
+            if effective_address < CPU.memory_base or effective_address >= CPU.memory_size + CPU.memory_base:
+                return PC_handelingen
+            positie_data_memory = effective_address - CPU.memory_base
+            if instructies.opcode == 80: #load
+                byte_waarde = self.data_memory[positie_data_memory]
+                if instructies.R != 0:
+                    self.RegisterFile[instructies.R - 1] = byte_waarde
+            #elif instructies.opcode == 81: #store
         return PC_handelingen
 
     def run(self, ):
@@ -279,6 +316,8 @@ class CPU:
 def main():
     cpu = CPU()
     cpu.laad_bestand(sys.argv[1])   #leest het programma naar de program memory
+    if len(sys.argv) > 2:
+        cpu.laad_data_memory(sys.argv[2])  #laadt data memory als er een tweede argument is
 
     print("initial register state:")
     cpu.dump_registers()
