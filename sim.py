@@ -1,4 +1,4 @@
-#lvl0 t/m 6 = done
+#lvl0 t/m 7 = done
 #!/usr/bin/env python3
 
 import sys
@@ -300,7 +300,12 @@ class CPU:
                 byte_waarde = self.data_memory[positie_data_memory]
                 if instructies.R != 0:
                     self.RegisterFile[instructies.R - 1] = byte_waarde
-            #elif instructies.opcode == 81: #store
+            elif instructies.opcode == 81: #store
+                if instructies.R == 0:
+                    Rwaarde = 0
+                else: 
+                    Rwaarde = self.RegisterFile[instructies.R - 1]
+                self.data_memory[positie_data_memory] = Rwaarde & 0xFF
         return PC_handelingen
 
     def run(self, ):
